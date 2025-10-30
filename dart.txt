@@ -1,0 +1,90 @@
+import 'dart:convert';
+
+class Order {
+  String item;
+  String itemName;
+  double price;
+  String currency;
+  int quantity;
+
+  Order({
+    required this.item,
+    required this.itemName,
+    required this.price,
+    required this.currency,
+    required this.quantity,
+  });
+
+  factory Order.fromJson(Map<String, dynamic> json) => Order(
+        item: json['Item'],
+        itemName: json['ItemName'],
+        price: (json['Price'] as num).toDouble(),
+        currency: json['Currency'],
+        quantity: json['Quantity'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'Item': item,
+        'ItemName': itemName,
+        'Price': price,
+        'Currency': currency,
+        'Quantity': quantity,
+      };
+
+  @override
+  String toString() {
+    return 'Item: $item | Name: $itemName | Price: $price $currency | Qty: $quantity';
+  }
+}
+
+void main() {
+  // Chuỗi JSON ban đầu
+  const jsonString = '''
+  [
+    {"Item": "A1000","ItemName": "Iphone 15","Price": 1200,"Currency":"USD","Quantity":1},
+    {"Item": "A1001","ItemName": "Iphone 16","Price":1500,"Currency":"USD","Quantity":1}
+  ]
+  ''';
+
+  //Parse sang danh sách Order
+  List<dynamic> jsonList = jsonDecode(jsonString);
+  List<Order> orders = jsonList.map((e) => Order.fromJson(e)).toList();
+
+  print('=== Danh sách ban đầu ===');
+  displayOrders(orders);
+
+  // Thêm một order mới (giả lập nhập liệu)
+  var newOrder = Order(
+    item: 'A1002',
+    itemName: 'Iphone 17',
+    price: 1800,
+    currency: 'USD',
+    quantity: 1,
+  );
+  orders.add(newOrder);
+
+  print('\n=== Sau khi thêm Order mới ===');
+  displayOrders(orders);
+
+  // Tìm kiếm theo ItemName
+  String keyword = '16';
+  var result =
+      orders.where((o) => o.itemName.toLowerCase().contains(keyword.toLowerCase())).toList();
+
+  print('\n=== Kết quả tìm kiếm với từ khóa "$keyword" ===');
+  if (result.isEmpty) {
+    print('Không tìm thấy kết quả.');
+  } else {
+    displayOrders(result);
+  }
+
+  // Xuất lại JSON
+  print('\n=== JSON sau khi thêm order ===');
+  print(jsonEncode(orders.map((e) => e.toJson()).toList()));
+}
+
+void displayOrders(List<Order> orders) {
+  for (var o in orders) {
+    print(o);
+  }
+}
