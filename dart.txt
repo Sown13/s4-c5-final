@@ -1,11 +1,28 @@
-import 'dart:convert';
+import 'package:flutter/material.dart';
 
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Order Management',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(colorSchemeSeed: Colors.blue),
+      home: const OrderPage(title: '📦 Order Management'),
+    );
+  }
+}
+
+// ------------------ Model ------------------
 class Order {
-  String item;
-  String itemName;
-  double price;
-  String currency;
-  int quantity;
+  final String item;
+  final String itemName;
+  final double price;
+  final String currency;
+  final int quantity;
 
   Order({
     required this.item,
@@ -30,61 +47,190 @@ class Order {
         'Currency': currency,
         'Quantity': quantity,
       };
+}
+
+// ------------------ UI ------------------
+class OrderPage extends StatefulWidget {
+  final String title;
+  const OrderPage({super.key, required this.title});
 
   @override
-  String toString() {
-    return 'Item: $item | Name: $itemName | Price: $price $currency | Qty: $quantity';
-  }
+  State<OrderPage> createState() => _OrderPageState();
 }
 
-void main() {
-  // Chuỗi JSON ban đầu
-  const jsonString = '''
-  [
-    {"Item": "A1000","ItemName": "Iphone 15","Price": 1200,"Currency":"USD","Quantity":1},
-    {"Item": "A1001","ItemName": "Iphone 16","Price":1500,"Currency":"USD","Quantity":1}
-  ]
-  ''';
+class _OrderPageState extends State<OrderPage> {
+  List<Order> orders = [];
+  List<Order> filteredOrders = [];
+  final searchCtrl = TextEditingController();
 
-  //Parse sang danh sách Order
-  List<dynamic> jsonList = jsonDecode(jsonString);
-  List<Order> orders = jsonList.map((e) => Order.fromJson(e)).toList();
+  // Controllers cho form thêm mới
+  final itemCtrl = TextEditingController();
+  final itemNameCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+  final currencyCtrl = TextEditingController(text: "USD");
+  final quantityCtrl = TextEditingController();
 
-  print('=== Danh sách ban đầu ===');
-  displayOrders(orders);
-
-  // Thêm một order mới (giả lập nhập liệu)
-  var newOrder = Order(
-    item: 'A1002',
-    itemName: 'Iphone 17',
-    price: 1800,
-    currency: 'USD',
-    quantity: 1,
-  );
-  orders.add(newOrder);
-
-  print('\n=== Sau khi thêm Order mới ===');
-  displayOrders(orders);
-
-  // Tìm kiếm theo ItemName
-  String keyword = '16';
-  var result =
-      orders.where((o) => o.itemName.toLowerCase().contains(keyword.toLowerCase())).toList();
-
-  print('\n=== Kết quả tìm kiếm với từ khóa "$keyword" ===');
-  if (result.isEmpty) {
-    print('Không tìm thấy kết quả.');
-  } else {
-    displayOrders(result);
+  @override
+  void initState() {
+    super.initState();
+    loadInitialOrders();
   }
 
-  // Xuất lại JSON
-  print('\n=== JSON sau khi thêm order ===');
-  print(jsonEncode(orders.map((e) => e.toJson()).toList()));
-}
+  void loadInitialOrders() {
+    const jsonString = '''
+    [
+      {"Item": "A1000","ItemName": "Iphone 15","Price": 1200,"Currency":"USD","Quantity":1},
+      {"Item": "A1001","ItemName": "Iphone 16","Price":1500,"Currency":"USD","Quantity":1}
+    ]
+    ''';
+    final data = [
+      {"Item": "A1000","ItemName": "Iphone 15","Price": 1200,"Currency":"USD","Quantity":1},
+      {"Item": "A1001","ItemName": "Iphone 16","Price":1500,"Currency":"USD","Quantity":1}
+    ];
+    orders = data.map((e) => Order.fromJson(e)).toList();
+    filteredOrders = List.from(orders);
+  }
 
-void displayOrders(List<Order> orders) {
-  for (var o in orders) {
-    print(o);
+  void addOrder() {
+    if (itemCtrl.text.isEmpty ||
+        itemNameCtrl.text.isEmpty ||
+        priceCtrl.text.isEmpty ||
+        quantityCtrl.text.isEmpty) {
+      showMessage("Please fill in all fields");
+      return;
+    }
+
+    final newOrder = Order(
+      item: itemCtrl.text,
+      itemName: itemNameCtrl.text,
+      price: double.tryParse(priceCtrl.text) ?? 0,
+      currency: currencyCtrl.text,
+      quantity: int.tryParse(quantityCtrl.text) ?? 0,
+    );
+
+    setState(() {
+      orders.add(newOrder);
+      filteredOrders = List.from(orders);
+    });
+
+    itemCtrl.clear();
+    itemNameCtrl.clear();
+    priceCtrl.clear();
+    quantityCtrl.clear();
+    showMessage("Order added successfully!");
+  }
+
+  void searchOrder(String keyword) {
+    setState(() {
+      if (keyword.isEmpty) {
+        filteredOrders = List.from(orders);
+      } else {
+        filteredOrders = orders
+            .where((o) =>
+                o.itemName.toLowerCase().contains(keyword.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  void showMessage(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            // Ô tìm kiếm
+            TextField(
+              controller: searchCtrl,
+              decoration: InputDecoration(
+                labelText: 'Search by ItemName',
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: searchOrder,
+            ),
+            const SizedBox(height: 12),
+
+            // Danh sách order
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredOrders.length,
+                itemBuilder: (context, index) {
+                  final o = filteredOrders[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    child: ListTile(
+                      title: Text(o.itemName),
+                      subtitle: Text(
+                          '${o.item} | ${o.price} ${o.currency} | Qty: ${o.quantity}'),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const Divider(),
+            const Text(
+              'Add New Order',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+
+            // Form nhập dữ liệu
+            Row(
+              children: [
+                Expanded(
+                    child: TextField(
+                        controller: itemCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Item'))),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: TextField(
+                        controller: itemNameCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Item Name'))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                    child: TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            const InputDecoration(labelText: 'Price'))),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: TextField(
+                        controller: currencyCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Currency'))),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: TextField(
+                        controller: quantityCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            const InputDecoration(labelText: 'Quantity'))),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: addOrder,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Order'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
